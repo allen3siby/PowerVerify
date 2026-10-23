@@ -26,7 +26,7 @@ import type {
   ModelComparison,
 } from './types';
 
-const CLOUDFLARE_PROD_URL = 'https://cubic-weight-tractor-kathy.trycloudflare.com/api';
+const CLOUDFLARE_PROD_URL = 'https://algorithm-owen-everything-conceptual.trycloudflare.com/api';
 
 export const getApiBase = (): string => {
   const envUrl = import.meta.env.VITE_API_BASE_URL as string | undefined;
