@@ -26,7 +26,16 @@ import type {
   ModelComparison,
 } from './types';
 
-const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || (import.meta.env.PROD ? '/api' : 'http://localhost:8000/api');
+const CLOUDFLARE_PROD_URL = 'https://break-servers-vegetable-stood.trycloudflare.com/api';
+
+export const getApiBase = (): string => {
+  return (
+    (import.meta.env.VITE_API_BASE_URL as string) ||
+    (import.meta.env.PROD ? CLOUDFLARE_PROD_URL : 'http://localhost:8000/api')
+  );
+};
+
+const API_BASE = getApiBase();
 
 // Current session identity for RBAC
 let activeUserRole: string = 'VERIFICATION_OFFICER';
@@ -48,32 +57,43 @@ const getHeaders = (extra: Record<string, string> = {}) => ({
   ...extra,
 });
 
+async function handleResponse<T>(res: Response, fallbackErrMsg: string): Promise<T> {
+  const contentType = res.headers.get('content-type') || '';
+  if (!res.ok) {
+    if (contentType.includes('application/json')) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || fallbackErrMsg);
+    }
+    throw new Error(`${fallbackErrMsg} (HTTP ${res.status})`);
+  }
+  if (!contentType.includes('application/json')) {
+    throw new Error('API server returned non-JSON response. Ensure backend server is reachable.');
+  }
+  return res.json();
+}
+
 export const api = {
   // Existing Dashboard & Telemetry
   async getDatasetSummary(): Promise<DatasetSummary> {
     const res = await fetch(`${API_BASE}/dataset/summary`);
-    if (!res.ok) throw new Error('Failed to load dataset summary');
-    return res.json();
+    return handleResponse<DatasetSummary>(res, 'Failed to load dataset summary');
   },
 
   async getDashboardStats(): Promise<DashboardStats> {
     const res = await fetch(`${API_BASE}/dashboard/stats`);
-    if (!res.ok) throw new Error('Failed to load dashboard stats');
-    return res.json();
+    return handleResponse<DashboardStats>(res, 'Failed to load dashboard stats');
   },
 
   async getDashboardChart(timeRange: string = 'all', meterId?: string): Promise<DashboardChartResponse> {
     const params = new URLSearchParams({ time_range: timeRange });
     if (meterId) params.append('meter_id', meterId);
     const res = await fetch(`${API_BASE}/dashboard/chart?${params.toString()}`);
-    if (!res.ok) throw new Error('Failed to load chart data');
-    return res.json();
+    return handleResponse<DashboardChartResponse>(res, 'Failed to load chart data');
   },
 
   async getMeters(): Promise<MeterListItem[]> {
     const res = await fetch(`${API_BASE}/meters`);
-    if (!res.ok) throw new Error('Failed to load meters');
-    return res.json();
+    return handleResponse<MeterListItem[]>(res, 'Failed to load meters');
   },
 
   async getMeterHistory(meterId: string, timeRange: string = 'all'): Promise<MeterHistoryResponse> {
@@ -139,11 +159,7 @@ export const api = {
         random_state: randomState,
       }),
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || 'Failed to rerun Isolation Forest');
-    }
-    return res.json();
+    return handleResponse<ModelRerunResponse>(res, 'Failed to rerun Isolation Forest');
   },
 
   async getModelRuns(limit: number = 20): Promise<ModelRunSummary[]> {

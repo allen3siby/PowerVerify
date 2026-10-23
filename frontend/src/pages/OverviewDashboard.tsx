@@ -61,9 +61,11 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
   const [runError, setRunError] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState<boolean>(false);
   const [selectedMeterFilter, setSelectedMeterFilter] = useState<string>('');
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadData = async (range: string = timeRange, meterId?: string) => {
     setLoading(true);
+    setLoadError(null);
     try {
       const [sumRes, statRes, chartRes, meterRes, cfgRes, runsRes] = await Promise.all([
         api.getDatasetSummary(),
@@ -75,20 +77,21 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
       ]);
       setSummary(sumRes);
       setStats(statRes);
-      setChartPoints(chartRes.points);
-      setMeters(meterRes);
+      setChartPoints(chartRes?.points || []);
+      setMeters(meterRes || []);
       if (cfgRes) {
         setModelConfig(cfgRes);
         const actContam = cfgRes.active_configuration?.contamination ?? statRes.contamination;
         setActiveContamination(actContam);
         setSliderContamination(actContam);
-      } else {
+      } else if (statRes) {
         setActiveContamination(statRes.contamination);
         setSliderContamination(statRes.contamination);
       }
       setRecentRuns(runsRes || []);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load overview data', err);
+      setLoadError(err?.message || 'Unable to connect to PowerVerify backend service.');
     } finally {
       setLoading(false);
     }
@@ -436,12 +439,39 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
         {/* Recharts Component */}
         <div style={{ width: '100%', height: 380 }}>
           {loading ? (
-            <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
-              Loading consumption history...
+            <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', gap: '10px' }}>
+              <RefreshCw className="spin" size={24} style={{ color: 'var(--primary-blue)' }} />
+              <span>Loading smart-meter consumption history...</span>
+            </div>
+          ) : loadError ? (
+            <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#b91c1c', background: '#fef2f2', borderRadius: '8px', padding: '20px', gap: '12px', textAlign: 'center' }}>
+              <AlertTriangle size={32} />
+              <div>
+                <strong>Failed to load consumption data</strong>
+                <div style={{ fontSize: '0.85rem', color: '#7f1d1d', marginTop: '4px', maxWidth: '600px' }}>{loadError}</div>
+              </div>
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={() => loadData(timeRange, selectedMeterFilter)}
+                style={{ marginTop: '8px' }}
+              >
+                <RefreshCw size={14} style={{ marginRight: 6 }} /> Retry Connection
+              </button>
             </div>
           ) : chartPoints.length === 0 ? (
-            <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
-              No data points available for the selected period.
+            <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', gap: '8px', textAlign: 'center', padding: '20px' }}>
+              <Activity size={28} style={{ opacity: 0.5 }} />
+              <strong style={{ color: 'var(--text-secondary)' }}>No data points available for the selected period</strong>
+              <span style={{ fontSize: '0.8rem', maxWidth: '520px' }}>
+                The CEEW smart-meter dataset contains daily readings from May 1, 2019 to October 31, 2021. Try selecting <strong>1Y</strong> or <strong>ALL</strong>, or choose a different meter filter.
+              </span>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => { setTimeRange('all'); loadData('all', selectedMeterFilter); }}
+                style={{ marginTop: '6px' }}
+              >
+                View Full Dataset (ALL)
+              </button>
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
