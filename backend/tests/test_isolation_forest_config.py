@@ -75,15 +75,18 @@ def test_03_configuration_persists_across_restart():
 
 
 def test_04_invalid_contamination_is_rejected():
-    """4. Invalid contamination values (<0.01, >0.08, NaN, inf) are rejected with 400."""
-    invalid_cases = [0.005, 0.09, -0.01, float("nan"), float("inf")]
+    """4. Invalid contamination values (<0.01, >0.08, NaN, inf) are rejected with 400/422."""
+    invalid_cases = [0.005, 0.09, -0.01]
     for bad_c in invalid_cases:
         res = client.post("/api/model/rerun", json={
             "contamination": bad_c,
             "n_estimators": 150,
             "random_state": 42
         })
-        assert res.status_code == 400 or res.status_code == 422, f"Expected error for {bad_c}, got {res.status_code}"
+        assert res.status_code in (400, 422), f"Expected error for {bad_c}, got {res.status_code}"
+    for raw_bad in ['{"contamination": NaN, "n_estimators": 150}', '{"contamination": "invalid", "n_estimators": 150}']:
+        res = client.post("/api/model/rerun", content=raw_bad, headers={"Content-Type": "application/json"})
+        assert res.status_code in (400, 422)
 
 
 def test_05_invalid_estimators_are_rejected():

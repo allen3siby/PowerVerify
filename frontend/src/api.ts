@@ -26,13 +26,14 @@ import type {
   ModelComparison,
 } from './types';
 
-const CLOUDFLARE_PROD_URL = 'https://break-servers-vegetable-stood.trycloudflare.com/api';
+const CLOUDFLARE_PROD_URL = 'https://cubic-weight-tractor-kathy.trycloudflare.com/api';
 
 export const getApiBase = (): string => {
-  return (
-    (import.meta.env.VITE_API_BASE_URL as string) ||
-    (import.meta.env.PROD ? CLOUDFLARE_PROD_URL : 'http://localhost:8000/api')
-  );
+  const envUrl = import.meta.env.VITE_API_BASE_URL as string | undefined;
+  if (envUrl && envUrl.trim().length > 0) {
+    return envUrl.trim().replace(/\/+$/, '');
+  }
+  return import.meta.env.PROD ? CLOUDFLARE_PROD_URL : 'http://localhost:8000/api';
 };
 
 const API_BASE = getApiBase();

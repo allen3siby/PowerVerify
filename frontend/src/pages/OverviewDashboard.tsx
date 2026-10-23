@@ -537,12 +537,22 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
             </p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <span className="badge badge-reviewed" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <CheckCircle2 size={12} /> Active Backend Model: {(activeContamination * 100).toFixed(1)}%
-            </span>
-            {modelConfig?.current_run && (
-              <span className="badge badge-normal" style={{ fontSize: '0.75rem' }}>
-                Run ID: {modelConfig.current_run.run_id}
+            {loadError ? (
+              <span className="badge badge-high" style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#fef2f2', color: '#b91c1c', borderColor: '#fca5a5' }}>
+                <AlertTriangle size={12} /> Backend Offline / Unreachable
+              </span>
+            ) : modelConfig?.current_run ? (
+              <>
+                <span className="badge badge-reviewed" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <CheckCircle2 size={12} /> Active Backend Model: {(activeContamination * 100).toFixed(1)}%
+                </span>
+                <span className="badge badge-normal" style={{ fontSize: '0.75rem' }}>
+                  Run ID: {modelConfig.current_run.run_id} ({modelConfig.current_run.anomalies_flagged} flags)
+                </span>
+              </>
+            ) : (
+              <span className="badge badge-normal" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Sliders size={12} /> Configured: {(activeContamination * 100).toFixed(1)}% (No Trained Run)
               </span>
             )}
           </div>
@@ -649,7 +659,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
         <div style={{ marginTop: '20px', borderTop: '1px solid var(--border-color)', paddingTop: '14px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <History size={16} /> Model Run Audit Trail ({recentRuns.length} recorded runs)
+              <History size={16} /> Model Run Audit Trail ({loadError ? 'Offline' : `${recentRuns.length} recorded run${recentRuns.length === 1 ? '' : 's'}`})
             </span>
             <button
               className="btn btn-secondary btn-sm"
@@ -677,8 +687,15 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
                 <tbody>
                   {recentRuns.length === 0 ? (
                     <tr>
-                      <td colSpan={6} style={{ padding: '12px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                        No historical runs recorded yet.
+                      <td colSpan={6} style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                        {loadError ? (
+                          <div style={{ color: '#b91c1c' }}>
+                            <AlertTriangle size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '6px' }} />
+                            Audit trail unavailable — backend service is currently unreachable.
+                          </div>
+                        ) : (
+                          'No historical model runs recorded in database yet. Use "Re-run Isolation Forest" to execute and log a run.'
+                        )}
                       </td>
                     </tr>
                   ) : (
