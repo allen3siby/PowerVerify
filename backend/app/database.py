@@ -6,7 +6,20 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional, Tuple
 
 DB_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(DB_DIR, "powerverify_lite.db")
+DEFAULT_DB_PATH = os.path.join(DB_DIR, "powerverify_lite.db")
+
+# In serverless/read-only environments (e.g. Vercel), copy seed DB to /tmp where writes are permitted
+if os.environ.get("VERCEL"):
+    TMP_DB = os.path.join("/tmp", "powerverify_lite.db")
+    if not os.path.exists(TMP_DB) and os.path.exists(DEFAULT_DB_PATH):
+        try:
+            import shutil
+            shutil.copyfile(DEFAULT_DB_PATH, TMP_DB)
+        except Exception as e:
+            print(f"Warning: could not copy DB to /tmp: {e}")
+    DB_PATH = os.environ.get("POWERVERIFY_DB_PATH", TMP_DB)
+else:
+    DB_PATH = os.environ.get("POWERVERIFY_DB_PATH", DEFAULT_DB_PATH)
 
 def get_connection() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH)
